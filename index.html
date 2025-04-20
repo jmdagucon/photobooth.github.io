@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Photo Booth with Frame</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #f0f0f0;
+      padding: 20px;
+    }
+
+    video {
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.2);
+    }
+
+    #countdown {
+      font-size: 48px;
+      color: red;
+      margin: 20px;
+    }
+
+    select, button {
+      padding: 10px;
+      font-size: 16px;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>📸 Photo Booth</h1>
+  <video id="video" width="640" height="480" autoplay></video>
+
+  <div>
+    <label for="frameSelect">Choose Frame:</label>
+    <select id="frameSelect">
+      <option value="frame1.png">Classic Frame</option>
+      <option value="frame2.png">Cute Frame</option>
+      <option value="frame3.png">Summer Frame</option>
+    </select>
+  </div>
+
+  <div id="countdown"></div>
+
+  <button id="snap">Take Photo (with frame)</button>
+
+  <script>
+    const video = document.getElementById('video');
+    const snapBtn = document.getElementById('snap');
+    const countdown = document.getElementById('countdown');
+    const frameSelect = document.getElementById('frameSelect');
+
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => video.srcObject = stream)
+      .catch(err => alert("Camera error: " + err));
+
+    function dataURLtoBlob(dataUrl) {
+      const parts = dataUrl.split(';base64,');
+      const contentType = parts[0].split(':')[1];
+      const byteCharacters = atob(parts[1]);
+      const byteArrays = [];
+
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteArrays.push(byteCharacters.charCodeAt(i));
+      }
+
+      return new Blob([new Uint8Array(byteArrays)], { type: contentType });
+    }
+
+    function saveImage(dataUrl) {
+      const blob = dataURLtoBlob(dataUrl);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'photo_' + Date.now() + '.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+    }
+
+    function startCountdown(seconds, onDone) {
+      countdown.textContent = seconds;
+      const interval = setInterval(() => {
+        seconds--;
+        if (seconds <= 0) {
+          clearInterval(interval);
+          countdown.textContent = '';
+          onDone();
+        } else {
+          countdown.textContent = seconds;
+        }
+      }, 1000);
+    }
+
+    function takePhotoWithFrame(framePath) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 640;
+      canvas.height = 480;
+      const ctx = canvas.getContext('2d');
+
+      const frame = new Image();
+      frame.src = framePath;
+
+      frame.onload = () => {
+        ctx.drawImage(video, 0, 0, 640, 480); // Draw webcam
+        ctx.drawImage(frame, 0, 0, 640, 480); // Overlay frame
+        const dataUrl = canvas.toDataURL('image/png');
+        saveImage(dataUrl);
+      };
+
+      frame.onerror = () => alert("⚠️ Failed to load frame: " + framePath);
+    }
+
+    snapBtn.addEventListener('click', () => {
+      const frame = frameSelect.value;
+      startCountdown(3, () => takePhotoWithFrame(frame));
+    });
+  </script>
+</body>
+</html>
